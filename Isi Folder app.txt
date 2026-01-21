@@ -1,0 +1,923 @@
+===== app/(tabs)/_layout.tsx =====
+import React from 'react';
+import { Tabs, Redirect } from 'expo-router';
+import { useAuth } from '../context/GlobalContext'; 
+import { Ionicons } from '@expo/vector-icons';
+
+const WARNA_TEMA = '#007BFF'; 
+
+export default function TabsLayout() {
+  const { isLoggedIn } = useAuth();
+
+  if (!isLoggedIn) {
+    return <Redirect href="/" />;
+  }
+
+  return (
+    <Tabs screenOptions={{
+      tabBarActiveTintColor: WARNA_TEMA,
+    }}>
+      <Tabs.Screen 
+        name="home"
+        options={{ 
+          title: 'Home', 
+          headerShown: false, 
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="home" color={color} size={size} />
+          ),
+        }} 
+      />
+      <Tabs.Screen 
+        name="mybookings"
+        options={{ 
+          title: 'My Bookings',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="list" color={color} size={size} />
+          ),
+        }} 
+      />
+    </Tabs>
+  );
+}
+
+
+===== app/(tabs)/home.tsx =====
+import React, { useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Button, Animated } from 'react-native';
+import { Stack, Link, useRouter } from 'expo-router';
+import { useAuth } from '../context/GlobalContext';
+import { Ionicons } from '@expo/vector-icons';
+import { useState } from 'react'; // Update import React
+import axios from 'axios';
+import { API_URL } from '../../constants/Api';
+
+const GAMBAR_BARU = 'https://i.imgur.com/2nQ39bF.png';
+const LAUNDRY_SERVICES = [
+  { id: '1', nama: 'Cuci Kering Lipat (Reguler)', durasi: '2 Hari', harga: 'Rp 7.000 / kg', gambar: GAMBAR_BARU, deskripsi: 'Pakaian dicuci bersih menggunakan deterjen berkualitas, dikeringkan, dan dilipat rapi. Minimal 3kg.', rating: 4.8, testimoni: 'Wangi dan rapi banget! - Budi' },
+  { id: '2', nama: 'Cuci Setrika (Reguler)', durasi: '2-3 Hari', harga: 'Rp 10.000 / kg', gambar: GAMBAR_BARU, deskripsi: 'Paket lengkap cuci, kering, dan setrika uap. Pakaian Anda siap pakai dan bebas kusut. Minimal 3kg.', rating: 4.9, testimoni: 'Setrikanya licin dan rapi, recommended. - Ani' },
+  { id: '3', nama: 'Paket Kilat (1 Hari)', durasi: '1 Hari', harga: 'Rp 15.000 / kg', gambar: GAMBAR_BARU, deskripsi: 'Butuh cepat? Layanan ekspres 1 hari selesai untuk cuci kering lipat. S&K berlaku.', rating: 4.7, testimoni: 'Sangat membantu untuk yang butuh cepat. - Citra' },
+];
+
+function ServiceCard({ item, index }) {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 500,
+      delay: index * 100,
+      useNativeDriver: true,
+    }).start();
+  }, [fadeAnim, index]);
+
+  return (
+    <Animated.View style={{ opacity: fadeAnim }}> 
+      <Link href={{ pathname: "/detail", params: { id: item.id } }} asChild>
+        <TouchableOpacity style={styles.card}>
+          <Image source={{ uri: item.gambar }} style={styles.cardImage} />
+          <View style={styles.cardContent}>
+            <Text style={styles.cardTitle}>{item.nama}</Text>
+            <Text style={styles.cardInfo}>{item.durasi} • {item.harga}</Text>
+          </View>
+          <Text style={styles.cardButton}>Pesan</Text>
+        </TouchableOpacity>
+      </Link>
+    </Animated.View>
+  );
+}
+
+function CustomHeader() {
+  return (
+    <View style={styles.headerContainer}>
+      <Text style={styles.headerTitle}>Pilih Paket Pilihanmu</Text>
+      <Text style={styles.headerSubtitle}>Layanan cepat, bersih, dan profesional.</Text>
+    </View>
+  );
+}
+
+export default function HomeScreen() {
+  const { signOut } = useAuth();
+  
+  // --- KODE BARU ---
+  const [services, setServices] = useState([]); // Penampung data
+  
+  // Ambil data saat halaman dibuka
+  useEffect(() => {
+    fetchServices();
+  }, []);
+
+  const fetchServices = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/services`);
+      setServices(response.data); // Simpan data dari database ke state
+    } catch (error) {
+      console.log("Gagal ambil data service:", error);
+    }
+  };
+  // -----------------
+  
+  return (
+    <View style={styles.container}>
+      <Stack.Screen 
+        options={{ 
+          title: 'Layanan Laundry',
+          headerRight: () => (
+            <TouchableOpacity onPress={signOut} style={{ marginRight: 15 }}>
+              <Ionicons name="log-out-outline" size={28} color="#ff0000" />
+            </TouchableOpacity>
+          ),
+        }} 
+      />
+      
+      <FlatList
+        data={services} // <--- GANTI INI
+        renderItem={({ item, index }) => <ServiceCard item={item} index={index} />}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16 }}
+        ListHeaderComponent={<CustomHeader />}
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  headerContainer: {
+    paddingVertical: 10,
+    paddingHorizontal: 5,
+    marginBottom: 16,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#eee',
+    elevation: 2,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    color: '#333',
+  },
+  headerSubtitle: {
+    fontSize: 15,
+    textAlign: 'center',
+    color: '#666',
+    marginTop: 4,
+  },
+  card: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    marginBottom: 16,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#eee',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+  },
+  cardImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginRight: 12,
+    backgroundColor: '#eee',
+  },
+  cardContent: {
+    flex: 1,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  cardInfo: {
+    fontSize: 14,
+    color: '#666',
+  },
+  cardButton: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#007BFF',
+    marginLeft: 8,
+  },
+});
+
+
+===== app/(tabs)/mybookings.tsx =====
+import { Stack } from 'expo-router';
+import React from 'react';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { useBookings } from '../context/GlobalContext';
+
+function BookingCard({ item }) {
+  let statusBarColor = '#FFA500';
+  let statusText = item.status;
+
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>{item.serviceName}</Text>
+      <Text style={styles.cardInfo}>Dipesan oleh: {item.namaPelanggan}</Text>
+      {}
+      <Text style={styles.cardInfo}>Jadwal: {item.tanggalPesan}</Text>
+      {item.catatan ? (
+        <Text style={styles.cardInfo}>Catatan: {item.catatan}</Text>
+      ) : null}
+      
+      <View style={styles.statusBarContainer}>
+        <View style={[styles.statusBar, { backgroundColor: statusBarColor }]} />
+      </View>
+      <Text style={styles.statusText}>{statusText}</Text>
+    </View>
+  );
+}
+
+export default function MyBookingsScreen() {
+  const { bookings } = useBookings();
+
+  return (
+    <View style={styles.container}>
+      <Stack.Screen options={{ title: 'Pesananku' }} />
+      
+      <FlatList
+        data={bookings}
+        renderItem={({ item }) => <BookingCard item={item} />}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={{ padding: 16 }}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>Anda belum memiliki pesanan.</Text>
+            <Text style={styles.emptySubText}>Buat pesanan di tab "Home"!</Text>
+          </View>
+        }
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  card: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#eee',
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  cardInfo: {
+    fontSize: 14,
+    color: '#444',
+    marginBottom: 4,
+  },
+  statusBarContainer: {
+    height: 8,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 4,
+    marginTop: 12,
+    overflow: 'hidden',
+  },
+  statusBar: {
+    height: '100%',
+    width: '33%', 
+  },
+  statusText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#FFA500',
+    marginTop: 6,
+    textAlign: 'right',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 100,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#555',
+  },
+  emptySubText: {
+    fontSize: 14,
+    color: '#888',
+    marginTop: 8,
+  },
+});
+
+
+===== app/context/GlobalCOntext.tsx=====
+import { createContext, useContext } from 'react';
+
+export const AuthContext = createContext(null);
+export const BookingContext = createContext(null);
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}
+
+export function useBookings() {
+  const context = useContext(BookingContext);
+  if (!context) {
+    throw new Error('useBookings must be used within a BookingProvider');
+  }
+  return context;
+}
+
+
+===== app/_layout.tsx =====
+import React, { useState } from 'react';
+import { Slot } from 'expo-router';
+import { AuthContext, BookingContext } from './context/GlobalContext'; 
+
+export default function RootLayout() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [bookings, setBookings] = useState([]);
+
+  const authContextValue = {
+    signIn: () => setIsLoggedIn(true),
+    signOut: () => setIsLoggedIn(false),
+    isLoggedIn,
+  };
+
+  const bookingContextValue = {
+    bookings,
+    addBooking: (newBooking) => {
+      setBookings([...bookings, newBooking]);
+      console.log('Booking Ditambahkan!', newBooking);
+    },
+  };
+
+  return (
+    <AuthContext.Provider value={authContextValue}>
+      <BookingContext.Provider value={bookingContextValue}>
+        <Slot /> 
+      </BookingContext.Provider>
+    </AuthContext.Provider>
+  );
+}
+
+
+===== app/detail.tsx =====
+import React from 'react';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity } from 'react-native';
+import { Stack, Link, useLocalSearchParams, useRouter } from 'expo-router';
+
+const WARNA_TEMA = '#007BFF';
+
+const LAUNDRY_SERVICES = [
+  { id: '1', nama: 'Cuci Kering Lipat (Reguler)', durasi: '2 Hari', harga: 'Rp 7.000 / kg', gambar: 'https://i.imgur.com/L8qf4qj.png', deskripsi: 'Pakaian dicuci bersih menggunakan deterjen berkualitas, dikeringkan, dan dilipat rapi. Minimal 3kg.', rating: 4.8, testimoni: 'Wangi dan rapi banget! - Budi' },
+  { id: '2', nama: 'Cuci Setrika (Reguler)', durasi: '2-3 Hari', harga: 'Rp 10.000 / kg', gambar: 'https://i.imgur.com/L8qf4qj.png', deskripsi: 'Paket lengkap cuci, kering, dan setrika uap. Pakaian Anda siap pakai dan bebas kusut. Minimal 3kg.', rating: 4.9, testimoni: 'Setrikanya licin dan rapi, recommended. - Ani' },
+  { id: '3', nama: 'Paket Kilat (1 Hari)', durasi: '1 Hari', harga: 'Rp 15.000 / kg', gambar: 'https://i.imgur.com/L8qf4qj.png', deskripsi: 'Butuh cepat? Layanan ekspres 1 hari selesai untuk cuci kering lipat. S&K berlaku.', rating: 4.7, testimoni: 'Sangat membantu untuk yang butuh cepat. - Citra' },
+];
+
+export default function DetailScreen() {
+  const router = useRouter();
+  const { id } = useLocalSearchParams();
+  const service = LAUNDRY_SERVICES.find((item) => item.id === id);
+
+  if (!service) {
+    return (
+      <View style={styles.container}>
+        <Text>Layanan tidak ditemukan</Text>
+      </View>
+    );
+  }
+  
+  const openBookingModal = () => {
+    router.push({ 
+      pathname: "/modal", 
+      params: { 
+        serviceId: service.id,
+        serviceName: service.nama 
+      } 
+    });
+  };
+
+  return (
+    <View style={{flex: 1}}>
+      <ScrollView style={styles.container}>
+        <Stack.Screen options={{ title: "Detail Layanan" }} />
+        
+        <Image source={{ uri: service.gambar }} style={styles.image} />
+        <View style={styles.content}>
+          <Text style={styles.title}>{service.nama}</Text>
+          <Text style={styles.info}>{service.durasi} • {service.harga}</Text>
+          
+          <Text style={styles.sectionTitle}>Deskripsi</Text>
+          <Text style={styles.description}>{service.deskripsi}</Text>
+          
+          <Text style={styles.sectionTitle}>Testimoni</Text>
+          <Text style={styles.testimoni}>"{service.testimoni}" (Rating: {service.rating} / 5)</Text>
+
+        </View>
+      </ScrollView>
+      
+      {}
+      <View style={styles.footerButtonContainer}>
+        <TouchableOpacity 
+          style={styles.customButton} 
+          onPress={openBookingModal}
+        >
+          <Text style={styles.customButtonText}>Book Now</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  image: {
+    width: '100%',
+    height: 300,
+  },
+  content: {
+    padding: 20,
+    paddingBottom: 100,
+  },
+  title: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  info: {
+    fontSize: 18,
+    color: '#666',
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  description: {
+    fontSize: 16,
+    lineHeight: 24,
+  },
+  testimoni: {
+    fontSize: 16,
+    fontStyle: 'italic',
+    color: '#444',
+  },
+  footerButtonContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  customButton: {
+    backgroundColor: WARNA_TEMA,
+    paddingVertical: 14,
+    borderRadius: 30,
+    width: '100%',
+    alignItems: 'center',
+    elevation: 3,
+  },
+  customButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+});
+
+
+===== app/index.tsx =====
+import React, { useState } from 'react'; // Tambah useState
+import { View, StyleSheet, Text, TouchableOpacity, Image, TextInput, Alert, ActivityIndicator } from 'react-native'; // Tambah TextInput, Alert, ActivityIndicator
+import axios from 'axios'; // Tambah axios
+import { API_URL } from '../constants/Api'; // Tambah config API
+import React from 'react';
+import { View, StyleSheet, Text, TouchableOpacity, Image } from 'react-native';
+import { useAuth } from './context/GlobalContext'; 
+import { Link, Redirect } from 'expo-router';
+
+const WARNA_TEMA = '#007BFF';
+
+export default function LoginScreen() {
+  const { signIn, isLoggedIn } = useAuth();
+
+  // --- TAMBAHAN KODE BARU ---
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleLoginAPI = async () => {
+    if(!email || !password) return Alert.alert("Error", "Isi email dan password");
+    
+    setLoading(true);
+    try {
+      // 1. Tembak API Backend
+      const response = await axios.post(`${API_URL}/auth/login`, {
+        email: email,
+        password: password
+      });
+
+      // 2. Jika sukses, panggil fungsi signIn bawaan Context Anda
+      // (Kita kirim data user ke context agar tersimpan)
+      signIn(response.data.data); 
+      
+    } catch (error) {
+      Alert.alert("Gagal Login", "Email/Password salah atau cek koneksi internet.");
+    } finally {
+      setLoading(false);
+    }
+  };
+  // ---------------------------
+
+  if (isLoggedIn) {
+    return <Redirect href="/(tabs)/home" />;
+  }
+
+  return (
+    <View style={styles.container}>
+      {}
+      <Image 
+        source={{ uri: 'https://png.pngtree.com/png-clipart/20220818/ourmid/pngtree-blue-washing-machine-for-laundry-logo-png-image_6114594.png' }}
+        style={styles.logo}
+      />
+      <Text style={styles.title}>Selamat Datang!</Text>
+      <Text style={styles.subtitle}>Silakan login untuk memesan laundry.</Text>
+      
+      {/* --- TAMBAHKAN INPUT INI --- */}
+      <TextInput 
+        placeholder="Email" 
+        style={styles.input} 
+        value={email} onChangeText={setEmail} autoCapitalize="none"
+      />
+      <TextInput 
+        placeholder="Password" 
+        style={styles.input} 
+        secureTextEntry 
+        value={password} onChangeText={setPassword}
+      />
+      {/* --------------------------- */}
+
+      <TouchableOpacity 
+        style={styles.customButton} 
+        onPress={signIn}
+      >
+        <Text style={styles.customButtonText}>Login (Simulasi)</Text>
+      </TouchableOpacity>
+      
+      <Link href="/register" style={styles.link}>
+        Belum punya akun? Register di sini
+      </Link>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  input: {
+    width: '100%',
+    padding: 15,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 10,
+    marginBottom: 10, // Beri jarak antar input
+  },
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    gap: 15,
+    backgroundColor: '#fff',
+  },
+  logo: {
+    width: 120,
+    height: 120,
+    marginBottom: 20,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  link: {
+    marginTop: 15,
+    color: WARNA_TEMA,
+    fontSize: 16,
+  },
+  customButton: {
+    backgroundColor: WARNA_TEMA,
+    paddingVertical: 14,
+    paddingHorizontal: 40,
+    borderRadius: 30,
+    width: '100%',
+    alignItems: 'center',
+    elevation: 3,
+  },
+  customButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+});
+
+
+===== app/modal.tsx =====
+import React, { useState } from 'react';
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  StyleSheet, 
+  Platform, 
+  Alert, 
+  ScrollView,
+  TouchableOpacity
+} from 'react-native';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useBookings } from './context/GlobalContext';
+import { Picker } from '@react-native-picker/picker';
+
+const TAHUN_INI = new Date().getFullYear().toString();
+const HARI = Array.from({ length: 31 }, (_, i) => (i + 1).toString()); 
+const BULAN = [ "Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember" ];
+const JAM = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
+const MENIT = ["00", "15", "30", "45"];
+const WARNA_TEMA = '#007BFF';
+
+export default function BookingModal() {
+  const router = useRouter();
+  const { addBooking } = useBookings();
+  const { serviceId, serviceName } = useLocalSearchParams();
+  const [namaPelanggan, setNamaPelanggan] = useState('');
+  const [catatan, setCatatan] = useState('');
+  const [pilihHari, setPilihHari] = useState('1');
+  const [pilihBulan, setPilihBulan] = useState('Januari');
+  const [pilihJam, setPilihJam] = useState('09');
+  const [pilihMenit, setPilihMenit] = useState('00');
+
+  const handleConfirmBooking = () => {
+    if (!namaPelanggan.trim()) {
+      const errorMsg = 'Nama pelanggan tidak boleh kosong';
+      if (Platform.OS === 'web') {
+        alert(errorMsg);
+      } else {
+        Alert.alert('Error', errorMsg);
+      }
+      return;
+    }
+
+    const tanggalPesan = `${pilihHari} ${pilihBulan} ${TAHUN_INI}, jam ${pilihJam}:${pilihMenit}`;
+
+    const newBooking = {
+      id: Math.random().toString(),
+      serviceId: serviceId,
+      serviceName: serviceName,
+      namaPelanggan: namaPelanggan,
+      catatan: catatan,
+      tanggalPesan: tanggalPesan,
+      status: 'Menunggu Penjemputan',
+    };
+
+    addBooking(newBooking);
+
+    const message = `Booking Anda untuk ${serviceName} telah dikonfirmasi.`;
+    if (Platform.OS === 'web') {
+      alert('Pemesanan Berhasil!\n' + message);
+    } else {
+      Alert.alert('Pesanan Berhasil!', message);
+    }
+
+    router.back();
+  };
+
+  return (
+    <ScrollView style={styles.container}>
+      <Stack.Screen options={{ title: 'Form Pemesanan', presentation: 'modal' }} />
+      
+      <Text style={styles.title}>Konfirmasi Pesanan</Text>
+      <Text style={styles.serviceName}>{serviceName}</Text>
+      
+      <Text style={styles.label}>Nama Pelanggan</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Masukkan nama Anda"
+        value={namaPelanggan}
+        onChangeText={setNamaPelanggan}
+      />
+      
+      <Text style={styles.label}>Tanggal Penjemputan</Text>
+      <View style={styles.pickerRow}>
+        <View style={styles.pickerContainer}>
+          <Picker selectedValue={pilihHari} onValueChange={setPilihHari}>
+            {HARI.map((hari) => <Picker.Item key={hari} label={hari} value={hari} />)}
+          </Picker>
+        </View>
+        <View style={[styles.pickerContainer, { flex: 2 }]}>
+          <Picker selectedValue={pilihBulan} onValueChange={setPilihBulan}>
+            {BULAN.map((bulan) => <Picker.Item key={bulan} label={bulan} value={bulan} />)}
+          </Picker>
+        </View>
+      </View>
+      
+      <Text style={styles.label}>Jam Penjemputan</Text>
+      <View style={styles.pickerRow}>
+        <View style={styles.pickerContainer}>
+          <Picker selectedValue={pilihJam} onValueChange={setPilihJam}>
+            {JAM.map((jam) => <Picker.Item key={jam} label={jam} value={jam} />)}
+          </Picker>
+        </View>
+        <View style={styles.pickerContainer}>
+          <Picker selectedValue={pilihMenit} onValueChange={setPilihMenit}>
+            {MENIT.map((menit) => <Picker.Item key={menit} label={menit} value={menit} />)}
+          </Picker>
+        </View>
+      </View>
+      
+      <Text style={styles.label}>Catatan Tambahan (Opsional)</Text>
+      <TextInput
+        style={[styles.input, styles.textArea]}
+        placeholder="Contoh: Ada pakaian luntur, mohon dipisah"
+        value={catatan}
+        onChangeText={setCatatan}
+        multiline
+      />
+      
+      {}
+      <View style={{ marginTop: 20, paddingBottom: 50 }}>
+        <TouchableOpacity 
+          style={styles.customButton} 
+          onPress={handleConfirmBooking}
+        >
+          <Text style={styles.customButtonText}>Konfirmasi Pemesanan</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 20,
+    backgroundColor: '#fff',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  serviceName: {
+    fontSize: 18,
+    color: '#555',
+    marginBottom: 24,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    backgroundColor: '#f9f9f9'
+  },
+  textArea: {
+    height: 100,
+    textAlignVertical: 'top',
+  },
+  pickerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  pickerContainer: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    backgroundColor: '#f9f9f9',
+    justifyContent: 'center',
+  },
+  customButton: {
+    backgroundColor: WARNA_TEMA,
+    paddingVertical: 14,
+    borderRadius: 30,
+    width: '100%',
+    alignItems: 'center',
+    elevation: 3,
+  },
+  customButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+});
+
+
+===== app/register.tsx =====
+import axios from 'axios';
+import { Link, useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { API_URL } from '../constants/Api'; // Import IP Address
+
+export default function RegisterScreen() {
+  const router = useRouter();
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleRegister = async () => {
+    if (!name || !email || !password) {
+      Alert.alert('Error', 'Mohon isi semua kolom');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Kirim data ke Backend
+      await axios.post(`${API_URL}/auth/register`, {
+        name, email, password
+      });
+      Alert.alert('Sukses', 'Registrasi Berhasil! Silakan Login.');
+      router.back(); // Kembali ke halaman Login
+    } catch (error) {
+      Alert.alert('Gagal', 'Email mungkin sudah terdaftar atau server mati.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Daftar Akun Baru</Text>
+      
+      <TextInput 
+        placeholder="Nama Lengkap" 
+        style={styles.input} 
+        value={name} onChangeText={setName} 
+      />
+      <TextInput 
+        placeholder="Email" 
+        style={styles.input} 
+        value={email} onChangeText={setEmail} autoCapitalize="none" 
+      />
+      <TextInput 
+        placeholder="Password" 
+        style={styles.input} 
+        secureTextEntry={true}
+        value={password} onChangeText={setPassword} 
+      />
+      
+      <TouchableOpacity style={styles.customButton} onPress={handleRegister} disabled={loading}>
+        {loading ? <ActivityIndicator color="#fff"/> : <Text style={styles.customButtonText}>DAFTAR</Text>}
+      </TouchableOpacity>
+
+      <Link href="/" style={styles.link}>
+        Sudah punya akun? Login
+      </Link>
+    </View>
+  );
+}
+
+// Saya gunakan style yang mirip dengan punya Anda sebelumnya
+const styles = StyleSheet.create({
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: '#fff' },
+  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20 },
+  input: { width: '100%', padding: 15, borderWidth: 1, borderColor: '#ddd', borderRadius: 10, marginBottom: 12 },
+  link: { marginTop: 15, color: 'blue', fontSize: 16 },
+  customButton: { backgroundColor: '#007BFF', paddingVertical: 14, width: '100%', alignItems: 'center', borderRadius: 30 },
+  customButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+});
+
+
